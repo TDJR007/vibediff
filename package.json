@@ -9,7 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@git-diff-view/vue": "^0.0.36",
     "@primevue/themes": "^4.5.4",
+    "diff": "^8.0.2",
     "pinia": "^3.0.4",
     "primeicons": "^7.0.0",
     "primevue": "^4.5.4",
