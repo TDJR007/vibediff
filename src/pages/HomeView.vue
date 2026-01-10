@@ -1,19 +1,20 @@
 <script setup lang="ts">
     import { useDiff } from '@/composables/useDiff'
-    import Button from 'primevue/button'
-    import Textarea from 'primevue/textarea'
-    import Splitter from 'primevue/splitter'
-    import SplitterPanel from 'primevue/splitterpanel'
-    
-    const { left, right, computeDiff, hasDiff, diffResult } = useDiff()
-    
-    // Quick test data (remove later)
-    left.value = `function greet(name) {
-      console.log("Hello " + name);
-    }`
-    right.value = `function greet(name) {
-      console.log("Hi " + name + "!");
-    }`
+import Button from 'primevue/button'
+import Textarea from 'primevue/textarea'
+import Splitter from 'primevue/splitter'
+import SplitterPanel from 'primevue/splitterpanel'
+import DiffViewer from '@/components/DiffViewer.vue'  // ← NEW
+
+const { left, right, computeDiff, hasDiff, diffResult } = useDiff()
+
+// Quick test data (remove later)
+left.value = `function greet(name) {
+  console.log("Hello " + name);
+}`
+right.value = `function greet(name) {
+  console.log("Hi " + name + "!");
+}`
     </script>
     
     <template>
@@ -66,10 +67,7 @@
           />
         </div>
     
-        <!-- Debug Output -->
-        <div v-if="hasDiff" class="mt-8">
-          <h2 class="text-2xl font-semibold mb-4">Raw Diff Result (for testing)</h2>
-          <pre class="bg-surface-100 dark:bg-surface-900 p-4 rounded-lg overflow-auto max-h-96 text-xs">{{ JSON.stringify(diffResult, null, 2) }}</pre>
-        </div>
+        <!-- Diff Viewer -->
+<DiffViewer v-if="hasDiff" :changes="diffResult" class="mt-8" />
       </div>
     </template>
