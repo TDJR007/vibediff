@@ -8,7 +8,7 @@ import DiffViewer from '@/components/DiffViewer.vue'
 
 const router = useRouter()
 
-// Data passed from Home via router state
+// Data passed from Home
 const leftText = ref('')
 const rightText = ref('')
 const diffResult = ref<Change[]>([])
@@ -16,10 +16,13 @@ const diffResult = ref<Change[]>([])
 // Merged result - starts as a copy of right (modified) text
 const mergedText = ref('')
 
-// Check if we have data (came from Home)
+// Track which hunks have been manually accepted (for UI feedback later if needed)
+const acceptedHunks = ref<Set<number>>(new Set())
+
+// Check if we have data
 const hasData = computed(() => diffResult.value.length > 0)
 
-// Conflict detection - look for git-style markers
+// Conflict detection
 const hasConflicts = computed(() => {
     return mergedText.value.includes('<<<<<<<') ||
         mergedText.value.includes('=======') ||
@@ -27,42 +30,153 @@ const hasConflicts = computed(() => {
 })
 
 onMounted(() => {
-  // Get data from sessionStorage
-  const storedData = sessionStorage.getItem('vibediff-merge-data')
-  
-  console.log('MergeView mounted, stored data exists:', !!storedData) // Debug
-  
-  if (storedData) {
-    try {
-      const data = JSON.parse(storedData)
-      
-      if (data.left && data.right && data.diff) {
-        leftText.value = data.left
-        rightText.value = data.right
-        diffResult.value = data.diff
-        mergedText.value = data.right // Start with modified version
-        
-        console.log('✅ Data loaded successfully:', {
-          leftLength: leftText.value.length,
-          rightLength: rightText.value.length,
-          diffLength: diffResult.value.length
-        })
-        
-        // Clear the session storage after reading (optional, keeps it clean)
-        sessionStorage.removeItem('vibediff-merge-data')
-      } else {
-        console.log('❌ Data incomplete, redirecting')
+    const storedData = sessionStorage.getItem('vibediff-merge-data')
+
+    console.log('MergeView mounted, stored data exists:', !!storedData)
+
+    if (storedData) {
+        try {
+            const data = JSON.parse(storedData)
+
+            if (data.left && data.right && data.diff) {
+                leftText.value = data.left
+                rightText.value = data.right
+                diffResult.value = data.diff
+                mergedText.value = data.right // Start with modified version
+
+                console.log('✅ Data loaded successfully')
+                sessionStorage.removeItem('vibediff-merge-data')
+            } else {
+                console.log('❌ Data incomplete, redirecting')
+                router.push('/')
+            }
+        } catch (e) {
+            console.error('Failed to parse merge data:', e)
+            router.push('/')
+        }
+    } else {
+        console.log('❌ No stored data found, redirecting to home')
         router.push('/')
-      }
-    } catch (e) {
-      console.error('Failed to parse merge data:', e)
-      router.push('/')
     }
-  } else {
-    console.log('❌ No stored data found, redirecting to home')
-    router.push('/')
-  }
 })
+
+// Helper: Get text content from a Change array
+const getChangeText = (changes: Change[]) => {
+    return changes.map(c => c.value).join('')
+}
+
+// Accept left (original) for a specific hunk
+const acceptLeft = (hunkIndex: number) => {
+    console.log('Accept Left clicked for hunk:', hunkIndex)
+
+    // Rebuild merged text with this hunk using left (original) version
+    rebuildMergedText(hunkIndex, 'left')
+    acceptedHunks.value.add(hunkIndex)
+}
+
+// Accept right (modified) for a specific hunk
+const acceptRight = (hunkIndex: number) => {
+    console.log('Accept Right clicked for hunk:', hunkIndex)
+
+    // Rebuild merged text with this hunk using right (modified) version
+    rebuildMergedText(hunkIndex, 'right')
+    acceptedHunks.value.add(hunkIndex)
+}
+
+// Keep both with conflict markers
+const keepBoth = (hunkIndex: number) => {
+    console.log('Keep Both clicked for hunk:', hunkIndex)
+
+    rebuildMergedText(hunkIndex, 'both')
+    acceptedHunks.value.add(hunkIndex)
+}
+
+// Rebuild the merged text based on user choice for a hunk
+const rebuildMergedText = (targetHunkIndex: number, choice: 'left' | 'right' | 'both') => {
+    let result = ''
+    let currentHunkIndex = 0
+    let inChangeBlock = false
+    const processedHunks = new Set<number>()
+
+    // First pass: identify all change blocks and their indices
+    const changeBlocks: Array<{ hunkIndex: number, changes: Change[] }> = []
+    let tempChanges: Change[] = []
+
+    diffResult.value.forEach((change, idx) => {
+        const isChange = change.added || change.removed
+
+        if (isChange) {
+            if (!inChangeBlock) {
+                inChangeBlock = true
+                tempChanges = [change]
+            } else {
+                tempChanges.push(change)
+            }
+        } else if (inChangeBlock) {
+            changeBlocks.push({ hunkIndex: currentHunkIndex++, changes: [...tempChanges] })
+            tempChanges = []
+            inChangeBlock = false
+        }
+    })
+
+    // Handle trailing change block
+    if (inChangeBlock && tempChanges.length > 0) {
+        changeBlocks.push({ hunkIndex: currentHunkIndex, changes: [...tempChanges] })
+    }
+
+    // Second pass: rebuild text
+    currentHunkIndex = 0
+    inChangeBlock = false
+
+    diffResult.value.forEach((change, idx) => {
+        const isChange = change.added || change.removed
+
+        if (isChange && !inChangeBlock) {
+            inChangeBlock = true
+        }
+
+        // Check if this is the target hunk
+        if (currentHunkIndex === targetHunkIndex && isChange) {
+            if (choice === 'left') {
+                // ONLY include removed lines (original)
+                if (change.removed) {
+                    result += change.value
+                }
+                // Skip added lines completely
+            } else if (choice === 'right') {
+                // ONLY include added lines (modified)
+                if (change.added) {
+                    result += change.value
+                }
+                // Skip removed lines completely
+            } else if (choice === 'both') {
+                // Add conflict markers
+                if (change.removed) {
+                    result += '<<<<<<< HEAD (Original)\n' + change.value
+                } else if (change.added) {
+                    result += '=======\n' + change.value + '>>>>>>> Modified\n'
+                }
+            }
+        } else if (!isChange) {
+            // Unchanged lines - always keep
+            result += change.value
+        } else if (currentHunkIndex !== targetHunkIndex && isChange) {
+            // Other hunks - keep default (modified/added version)
+            if (change.added) {
+                result += change.value
+            }
+        }
+
+        // Check if we're at the end of a change block
+        const nextChange = diffResult.value[idx + 1]
+        if (inChangeBlock && (!nextChange || (!nextChange.added && !nextChange.removed))) {
+            currentHunkIndex++
+            inChangeBlock = false
+        }
+    })
+
+    mergedText.value = result
+}
 
 const goBack = () => {
     router.push('/')
@@ -74,7 +188,6 @@ const exportMerged = () => {
         return
     }
 
-    // Create a blob and download
     const blob = new Blob([mergedText.value], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -96,8 +209,12 @@ const exportMerged = () => {
                 @click="goBack" />
         </div>
 
-        <!-- Diff Viewer -->
-        <DiffViewer :changes="diffResult" />
+        <!-- Diff Viewer with interactive controls -->
+        <DiffViewer
+            :changes="diffResult"
+            :interactive="true"
+            @accept-left="acceptLeft"
+            @accept-right="acceptRight" />
 
         <!-- Merged Result Section -->
         <div class="space-y-3">
