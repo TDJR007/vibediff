@@ -6,7 +6,7 @@ import router from './router'
 
 // PrimeVue imports
 import PrimeVue from 'primevue/config'
-import Aura from '@primevue/themes/aura'   // ← modern, clean theme (Lara successor)
+import Aura from '@primevue/themes/aura'   
 import Tooltip from 'primevue/tooltip'
 import 'primeicons/primeicons.css'
 import Toast from 'primevue/toast'
