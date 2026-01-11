@@ -105,6 +105,5 @@ Contributions are welcome! Feel free to:
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
+MIT License
 ---
