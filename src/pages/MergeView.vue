@@ -34,11 +34,17 @@ const hasConflicts = computed(() => {
         mergedText.value.includes('>>>>>>>')
 })
 
-const { saveDiff } = useDiffStorage()
+const { saveDiff, diffExists } = useDiffStorage()
+const isOverwriting = ref(false)
+const existingDiffName = ref('')
 const diffName = ref('')
 
 const showSaveDialogVisible = ref(false)
 const saveDialogName = ref('')
+
+const nameAlreadyExists = computed(() => {
+    return saveDialogName.value.trim() && diffExists(saveDialogName.value.trim())
+})
 
 const diffViewerRef = ref<InstanceType<typeof DiffViewer> | null>(null)
 
@@ -258,6 +264,8 @@ const goBack = () => {
 
 const showSaveDialog = () => {
     saveDialogName.value = `Diff - ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`
+    isOverwriting.value = false
+    existingDiffName.value = ''
     showSaveDialogVisible.value = true
 }
 
@@ -457,7 +465,7 @@ const exportMerged = () => {
         v-model:visible="showSaveDialogVisible"
         modal
         header="Save Diff to Library"
-        :style="{ width: '450px' }">
+        :style="{ width: '500px' }">
         <div class="space-y-4">
             <div>
                 <label for="diff-name" class="block text-sm font-semibold mb-2">
@@ -471,7 +479,24 @@ const exportMerged = () => {
                     @keyup.enter="saveDiffToLibrary"
                     autofocus />
             </div>
-            <p class="text-sm text-surface-600 dark:text-surface-400">
+
+            <!-- Overwrite Warning -->
+            <div v-if="nameAlreadyExists"
+                class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                <div class="flex items-start gap-2">
+                    <i class="pi pi-exclamation-triangle text-yellow-600 dark:text-yellow-400 mt-0.5"></i>
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold text-yellow-800 dark:text-yellow-300">
+                            This name already exists
+                        </p>
+                        <p class="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
+                            Saving will overwrite the existing diff with the same name.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <p v-else class="text-sm text-surface-600 dark:text-surface-400">
                 <i class="pi pi-info-circle mr-1"></i>
                 Give your diff a memorable name so you can find it later.
             </p>
@@ -485,9 +510,11 @@ const exportMerged = () => {
                 outlined
                 @click="showSaveDialogVisible = false" />
             <Button
-                label="Save"
-                icon="pi pi-check"
-                @click="saveDiffToLibrary" />
+                :label="nameAlreadyExists ? 'Overwrite' : 'Save'"
+                :icon="nameAlreadyExists ? 'pi pi-exclamation-triangle' : 'pi pi-check'"
+                :severity="nameAlreadyExists ? 'warning' : 'primary'"
+                @click="saveDiffToLibrary"
+                :disabled="!saveDialogName.trim()" />
         </template>
     </Dialog>
 </template>

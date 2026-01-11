@@ -1,51 +1,91 @@
+<!-- src/layouts/DefaultLayout.vue -->
 <script setup lang="ts">
-    import { RouterLink, RouterView } from 'vue-router'
-    import Button from 'primevue/button'
-    import { useThemeStore } from '@/stores/themeStore'
-    import { storeToRefs } from 'pinia'
-    
-    const themeStore = useThemeStore()
-    const { mode } = storeToRefs(themeStore)
-    
-    const toggleTheme = () => {
-      let next: 'light' | 'dark' | 'system'
-      if (mode.value === 'system') next = 'dark'
-      else if (mode.value === 'dark') next = 'light'
-      else next = 'system'
-      
-      themeStore.setMode(next)
-    }
-    </script>
-    
-    <template>
-      <div class="min-h-screen flex flex-col">
-        <!-- Navbar -->
-        <nav class="bg-surface-0 dark:bg-surface-950 border-b border-surface-200 dark:border-surface-800 p-4 shadow-sm">
-          <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-8">
-              <RouterLink to="/" class="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                VibeDiff
-              </RouterLink>
-              <div class="flex gap-6 text-lg">
-                <RouterLink to="/" class="hover:text-primary-600 dark:hover:text-primary-400">Home</RouterLink>
-                <RouterLink to="/my-diffs" class="hover:text-primary-600 dark:hover:text-primary-400">My Diffs</RouterLink>
-                <RouterLink to="/about" class="hover:text-primary-600 dark:hover:text-primary-400">About</RouterLink>
-              </div>
-            </div>
-    
-            <!-- Dark mode toggle -->
+import { useRoute } from 'vue-router'
+import Button from 'primevue/button'
+import { useThemeStore } from '@/stores/themeStore'
+import { storeToRefs } from 'pinia'
+import { computed } from 'vue'
+
+const route = useRoute()
+const themeStore = useThemeStore()
+const { mode } = storeToRefs(themeStore)
+
+// Toggle only light ↔ dark
+const toggleTheme = () => {
+  const next = mode.value === 'dark' ? 'light' : 'dark'
+  themeStore.setMode(next)
+}
+
+const themeIcon = computed(() =>
+  mode.value === 'dark' ? 'pi pi-sun' : 'pi pi-moon'
+)
+</script>
+
+<template>
+  <div class="min-h-screen flex flex-col bg-surface-ground text-surface-900 dark:bg-surface-950 dark:text-surface-0">
+    <!-- Navbar -->
+    <nav
+      class="bg-surface-0 dark:bg-surface-950 border-b border-surface-200 dark:border-surface-800 shadow-sm sticky top-0 z-50">
+      <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-end h-16"> <!-- justify-end pushes everything to right -->
+          <!-- All buttons + icon in one group, same level -->
+          <div class="flex items-center gap-3">
+            <!-- Nav Buttons -->
             <Button
-              :icon="mode === 'dark' ? 'pi pi-sun' : mode === 'light' ? 'pi pi-moon' : 'pi pi-circle-fill'"
-              class="p-button-rounded p-button-text p-button-plain"
+              as="router-link"
+              to="/"
+              label="Home"
+              class="p-button-text p-button-sm px-5 py-2 rounded-md transition-all duration-200 hover:shadow-sm hover:bg-primary-50 dark:hover:bg-primary-900 no-underline"
+              :class="{
+                '!bg-primary-600 !text-white hover:!bg-primary-700': route.path === '/',
+                '!text-surface-700 dark:!text-surface-300': route.path !== '/'
+              }" />
+
+            <Button
+              as="router-link"
+              to="/my-diffs"
+              label="My Diffs"
+              class="p-button-text p-button-sm px-5 py-2 rounded-md transition-all duration-200 hover:shadow-sm hover:bg-primary-50 dark:hover:bg-primary-900 no-underline"
+              :class="{
+                '!bg-primary-600 !text-white hover:!bg-primary-700': route.path === '/my-diffs',
+                '!text-surface-700 dark:!text-surface-300': route.path !== '/my-diffs'
+              }" />
+
+            <Button
+              as="router-link"
+              to="/about"
+              label="About"
+              class="p-button-text p-button-sm px-5 py-2 rounded-md transition-all duration-200 hover:shadow-sm hover:bg-primary-50 dark:hover:bg-primary-900 no-underline"
+              :class="{
+                '!bg-primary-600 !text-white hover:!bg-primary-700': route.path === '/about',
+                '!text-surface-700 dark:!text-surface-300': route.path !== '/about'
+              }" />
+
+            <!-- Theme toggle – perfectly round, same level as nav buttons -->
+            <Button
+              :icon="themeIcon"
+              class="p-button-rounded p-button-text flex items-center justify-center transition-colors hover:bg-surface-100 dark:hover:bg-surface-800"
+              style="width: 43px; height: 43px;" 
               @click="toggleTheme"
-              v-tooltip.bottom="`Theme: ${mode}`"
-            />
+              v-tooltip.bottom="`Toggle ${mode === 'dark' ? 'Light' : 'Dark'} Mode`"
+              />
           </div>
-        </nav>
-    
-        <!-- Page content -->
-        <main class="flex-grow container mx-auto p-6">
-          <RouterView />
-        </main>
+        </div>
       </div>
-    </template>
+    </nav>
+
+    <!-- Main content -->
+    <main class="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <RouterView />
+    </main>
+  </div>
+</template>
+
+<style scoped>
+/* Kill underlines once and for all */
+a,
+button[as="router-link"],
+button {
+  text-decoration: none !important;
+}
+</style>

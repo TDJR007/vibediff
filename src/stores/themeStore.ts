@@ -1,27 +1,20 @@
+// src/stores/themeStore.ts
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useThemeStore = defineStore('theme', () => {
-  const mode = ref<'light' | 'dark' | 'system'>('system')
+  const mode = ref<'light' | 'dark'>('dark') // default to dark (or 'light' if you prefer)
 
-  // This will be called when user changes preference
-  const setMode = (newMode: 'light' | 'dark' | 'system') => {
+  const setMode = (newMode: 'light' | 'dark') => {
     mode.value = newMode
-    
-    // We'll sync this with PrimeVue in main.ts later
-    if (newMode === 'system') {
-      document.documentElement.classList.remove('p-dark')
-      localStorage.removeItem('theme-mode')
-    } else {
-      const isDark = newMode === 'dark'
-      document.documentElement.classList.toggle('p-dark', isDark)
-      localStorage.setItem('theme-mode', newMode)
-    }
+    const isDark = newMode === 'dark'
+    document.documentElement.classList.toggle('p-dark', isDark)
+    localStorage.setItem('theme-mode', newMode)
   }
 
-  // Load from localStorage on init
+  // Load saved preference
   const saved = localStorage.getItem('theme-mode') as 'light' | 'dark' | null
-  if (saved && (saved === 'light' || saved === 'dark')) {
+  if (saved) {
     mode.value = saved
     document.documentElement.classList.toggle('p-dark', saved === 'dark')
   }

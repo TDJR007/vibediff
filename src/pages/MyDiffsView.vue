@@ -52,7 +52,7 @@ const handleDelete = (diff: SavedDiff) => {
     rejectLabel: 'Cancel',
     acceptClass: 'p-button-danger',
     accept: () => {
-      deleteDiff(diff.id)
+      deleteDiff(diff.name)  // Changed from diff.id to diff.name
       toast.add({
         severity: 'info',
         summary: 'Deleted',
