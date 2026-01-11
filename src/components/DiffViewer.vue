@@ -233,6 +233,11 @@ const handleCheckbox = (hunkIndex: number, side: 'left' | 'right') => {
     emit('acceptRight', hunkIndex)
   }
 }
+
+// Expose selections so parent can access them
+defineExpose({
+  hunkSelections
+})
 </script>
 
 <template>

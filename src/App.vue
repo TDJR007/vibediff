@@ -4,5 +4,6 @@
   
   <template>
     <Toast />
+    <ConfirmDialog />
     <DefaultLayout />
   </template>
