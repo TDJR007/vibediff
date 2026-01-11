@@ -2,6 +2,8 @@
     import { computed, ref } from 'vue'
     import type { Change } from 'diff'
     import Checkbox from 'primevue/checkbox'
+    import Splitter from 'primevue/splitter'
+    import SplitterPanel from 'primevue/splitterpanel'
     
     interface Props {
       changes: Change[]
@@ -17,7 +19,7 @@
       acceptRight: [hunkIndex: number]
     }>()
     
-    // Track which side is selected per hunk (null = unselected, 'left' | 'right')
+    // Track which side is selected per hunk
     const hunkSelections = ref<Map<number, 'left' | 'right'>>(new Map())
     
     // Group changes into proper hunks
@@ -25,9 +27,8 @@
       const result: Array<{
         index: number
         changes: Change[]
-        hasChanges: boolean
-        leftContent: string
-        rightContent: string
+        leftLines: string[]
+        rightLines: string[]
       }> = []
     
       let currentHunk: Change[] = []
@@ -43,15 +44,20 @@
         } else if (isChange && inChangeBlock) {
           currentHunk.push(change)
         } else if (!isChange && inChangeBlock) {
-          const leftContent = currentHunk.filter(c => c.removed).map(c => c.value).join('')
-          const rightContent = currentHunk.filter(c => c.added).map(c => c.value).join('')
+          // Extract lines for left and right
+          const leftLines = currentHunk
+            .filter(c => c.removed)
+            .flatMap(c => c.value.split('\n').filter(l => l !== ''))
+          
+          const rightLines = currentHunk
+            .filter(c => c.added)
+            .flatMap(c => c.value.split('\n').filter(l => l !== ''))
           
           result.push({
             index: hunkIndex++,
             changes: [...currentHunk],
-            hasChanges: true,
-            leftContent,
-            rightContent
+            leftLines,
+            rightLines
           })
           
           currentHunk = []
@@ -59,30 +65,43 @@
         }
       })
     
+      // Handle trailing change block
       if (inChangeBlock && currentHunk.length > 0) {
-        const leftContent = currentHunk.filter(c => c.removed).map(c => c.value).join('')
-        const rightContent = currentHunk.filter(c => c.added).map(c => c.value).join('')
+        const leftLines = currentHunk
+          .filter(c => c.removed)
+          .flatMap(c => c.value.split('\n').filter(l => l !== ''))
+        
+        const rightLines = currentHunk
+          .filter(c => c.added)
+          .flatMap(c => c.value.split('\n').filter(l => l !== ''))
         
         result.push({
           index: hunkIndex++,
           changes: [...currentHunk],
-          hasChanges: true,
-          leftContent,
-          rightContent
+          leftLines,
+          rightLines
         })
       }
     
       return result
     })
     
-    // Process into lines with hunk tracking
-    const processedLines = computed(() => {
-      const result: Array<{
-        leftLineNum: number | null
-        rightLineNum: number | null
+    // Build side-by-side line arrays
+    const sideBySideLines = computed(() => {
+      const leftLines: Array<{
+        lineNum: number
         content: string
-        type: 'equal' | 'add' | 'remove'
+        type: 'equal' | 'remove'
         hunkIndex: number | null
+        isFirstInHunk?: boolean
+      }> = []
+      
+      const rightLines: Array<{
+        lineNum: number
+        content: string
+        type: 'equal' | 'add'
+        hunkIndex: number | null
+        isFirstInHunk?: boolean
       }> = []
     
       let leftNum = 1
@@ -100,33 +119,66 @@
           inChangeBlock = true
         }
     
-        lines.forEach((line) => {
-          if (change.added) {
-            result.push({
-              leftLineNum: null,
-              rightLineNum: rightNum++,
-              content: line,
-              type: 'add',
-              hunkIndex: currentHunkIdx
-            })
-          } else if (change.removed) {
-            result.push({
-              leftLineNum: leftNum++,
-              rightLineNum: null,
+        if (change.removed) {
+          // Add to left side
+          lines.forEach((line, lineIdx) => {
+            leftLines.push({
+              lineNum: leftNum++,
               content: line,
               type: 'remove',
-              hunkIndex: currentHunkIdx
+              hunkIndex: currentHunkIdx,
+              isFirstInHunk: lineIdx === 0
             })
-          } else {
-            result.push({
-              leftLineNum: leftNum++,
-              rightLineNum: rightNum++,
+          })
+          
+          // Add empty placeholders to right side to keep alignment
+          lines.forEach(() => {
+            rightLines.push({
+              lineNum: 0, // placeholder
+              content: '',
+              type: 'equal',
+              hunkIndex: null
+            })
+          })
+        } else if (change.added) {
+          // Add empty placeholders to left side
+          lines.forEach(() => {
+            leftLines.push({
+              lineNum: 0, // placeholder
+              content: '',
+              type: 'equal',
+              hunkIndex: null
+            })
+          })
+          
+          // Add to right side
+          lines.forEach((line, lineIdx) => {
+            rightLines.push({
+              lineNum: rightNum++,
+              content: line,
+              type: 'add',
+              hunkIndex: currentHunkIdx,
+              isFirstInHunk: lineIdx === 0
+            })
+          })
+        } else {
+          // Unchanged - add to both sides
+          lines.forEach((line) => {
+            leftLines.push({
+              lineNum: leftNum++,
               content: line,
               type: 'equal',
               hunkIndex: null
             })
-          }
-        })
+            
+            rightLines.push({
+              lineNum: rightNum++,
+              content: line,
+              type: 'equal',
+              hunkIndex: null
+            })
+          })
+        }
     
         const nextChange = props.changes[idx + 1]
         if (inChangeBlock && (!nextChange || (!nextChange.added && !nextChange.removed))) {
@@ -135,36 +187,12 @@
         }
       })
     
-      return result
-    })
-    
-    // Get first removed and first added line for each hunk (for checkbox placement)
-    const hunkCheckboxLines = computed(() => {
-      const map = new Map<number, { firstRemoved: number | null, firstAdded: number | null }>()
-      
-      processedLines.value.forEach((line, idx) => {
-        if (line.hunkIndex !== null) {
-          if (!map.has(line.hunkIndex)) {
-            map.set(line.hunkIndex, { firstRemoved: null, firstAdded: null })
-          }
-          
-          const entry = map.get(line.hunkIndex)!
-          if (line.type === 'remove' && entry.firstRemoved === null) {
-            entry.firstRemoved = idx
-          }
-          if (line.type === 'add' && entry.firstAdded === null) {
-            entry.firstAdded = idx
-          }
-        }
-      })
-      
-      return map
+      return { leftLines, rightLines }
     })
     
     const handleCheckbox = (hunkIndex: number, side: 'left' | 'right') => {
       const current = hunkSelections.value.get(hunkIndex)
       
-      // Toggle behavior: if already selected, deselect; otherwise select
       if (current === side) {
         hunkSelections.value.delete(hunkIndex)
       } else {
@@ -184,87 +212,108 @@
         <!-- Header -->
         <div class="bg-surface-100 dark:bg-surface-800 p-3 border-b border-surface-200 dark:border-surface-700">
           <h3 class="font-semibold text-sm">
-            {{ interactive ? 'Differences Found - Check boxes to accept changes' : 'Differences Found' }}
+            {{ interactive ? 'Side-by-Side Comparison - Check boxes to accept changes' : 'Side-by-Side Comparison' }}
           </h3>
         </div>
     
-        <!-- Diff Content -->
-        <div class="overflow-auto max-h-[600px] relative">
-          <table class="w-full text-sm font-mono">
-            <tbody>
-              <tr
-                v-for="(line, idx) in processedLines"
-                :key="idx"
-                :style="{
-                  backgroundColor: line.type === 'remove' ? 'rgba(239, 68, 68, 0.2)' : 
-                                   line.type === 'add' ? 'rgba(34, 197, 94, 0.2)' : 
-                                   'transparent'
-                }"
-                class="hover:opacity-80 transition-opacity"
-              >
-                <!-- Left checkbox column (for removed/original lines) -->
-                <td class="w-8 text-center select-none border-r border-surface-200 dark:border-surface-700">
-                  <Checkbox
-                    v-if="interactive && line.type === 'remove' && line.hunkIndex !== null && hunkCheckboxLines.get(line.hunkIndex)?.firstRemoved === idx"
-                    :modelValue="hunkSelections.get(line.hunkIndex) === 'left'"
-                    :binary="true"
-                    @update:modelValue="handleCheckbox(line.hunkIndex!, 'left')"
-                    class="scale-75"
-                    v-tooltip.right="'Accept original (left) version'"
-                  />
-                </td>
+        <!-- Side-by-Side Content -->
+        <div style="height: 600px;">
+          <Splitter layout="horizontal" style="height: 100%;">
+            <!-- Left Panel (Original) -->
+            <SplitterPanel :size="50" style="display: flex; flex-direction: column; height: 100%;">
+              <div class="bg-surface-50 dark:bg-surface-900 p-2 text-xs font-semibold text-center border-b border-surface-200 dark:border-surface-700">
+                Original (Left)
+              </div>
+              <div class="flex-1 overflow-auto">
+                <table class="w-full text-sm font-mono">
+                  <tbody>
+                    <tr
+                      v-for="(line, idx) in sideBySideLines.leftLines"
+                      :key="idx"
+                      :style="{
+                        backgroundColor: line.type === 'remove' ? 'rgba(239, 68, 68, 0.2)' : 'transparent'
+                      }"
+                      class="hover:opacity-80 transition-opacity"
+                    >
+                      <!-- Checkbox column -->
+                      <td class="w-8 text-center select-none border-r border-surface-200 dark:border-surface-700">
+                        <Checkbox
+                          v-if="interactive && line.type === 'remove' && line.isFirstInHunk && line.hunkIndex !== null"
+                          :modelValue="hunkSelections.get(line.hunkIndex) === 'left'"
+                          :binary="true"
+                          @update:modelValue="handleCheckbox(line.hunkIndex!, 'left')"
+                          class="scale-75"
+                          v-tooltip.right="'Accept this version'"
+                        />
+                      </td>
     
-                <!-- Left line number -->
-                <td class="w-12 text-right pr-4 py-1 text-surface-500 select-none border-r border-surface-200 dark:border-surface-700">
-                  {{ line.leftLineNum }}
-                </td>
-                
-                <!-- Change indicator -->
-                <td 
-                  class="w-8 text-center py-1 select-none border-r border-surface-200 dark:border-surface-700 font-bold"
-                  :style="{
-                    color: line.type === 'add' ? '#22c55e' : line.type === 'remove' ? '#ef4444' : 'transparent'
-                  }"
-                >
-                  <span v-if="line.type === 'add'">+</span>
-                  <span v-if="line.type === 'remove'">-</span>
-                </td>
+                      <!-- Line number -->
+                      <td class="w-12 text-right pr-4 py-1 text-surface-500 select-none border-r border-surface-200 dark:border-surface-700">
+                        {{ line.lineNum || '' }}
+                      </td>
     
-                <!-- Right line number -->
-                <td class="w-12 text-right pr-4 py-1 text-surface-500 select-none border-r border-surface-200 dark:border-surface-700">
-                  {{ line.rightLineNum }}
-                </td>
+                      <!-- Content -->
+                      <td class="px-4 py-1 whitespace-pre">{{ line.content || ' ' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </SplitterPanel>
     
-                <!-- Right checkbox column (for added/modified lines) -->
-                <td class="w-8 text-center select-none border-r border-surface-200 dark:border-surface-700">
-                  <Checkbox
-                    v-if="interactive && line.type === 'add' && line.hunkIndex !== null && hunkCheckboxLines.get(line.hunkIndex)?.firstAdded === idx"
-                    :modelValue="hunkSelections.get(line.hunkIndex) === 'right'"
-                    :binary="true"
-                    @update:modelValue="handleCheckbox(line.hunkIndex!, 'right')"
-                    class="scale-75"
-                    v-tooltip.left="'Accept modified (right) version'"
-                  />
-                </td>
+            <!-- Right Panel (Modified) -->
+            <SplitterPanel :size="50" style="display: flex; flex-direction: column; height: 100%;">
+              <div class="bg-surface-50 dark:bg-surface-900 p-2 text-xs font-semibold text-center border-b border-surface-200 dark:border-surface-700">
+                Modified (Right)
+              </div>
+              <div class="flex-1 overflow-auto">
+                <table class="w-full text-sm font-mono">
+                  <tbody>
+                    <tr
+                      v-for="(line, idx) in sideBySideLines.rightLines"
+                      :key="idx"
+                      :style="{
+                        backgroundColor: line.type === 'add' ? 'rgba(34, 197, 94, 0.2)' : 'transparent'
+                      }"
+                      class="hover:opacity-80 transition-opacity"
+                    >
+                      <!-- Checkbox column -->
+                      <td class="w-8 text-center select-none border-r border-surface-200 dark:border-surface-700">
+                        <Checkbox
+                          v-if="interactive && line.type === 'add' && line.isFirstInHunk && line.hunkIndex !== null"
+                          :modelValue="hunkSelections.get(line.hunkIndex) === 'right'"
+                          :binary="true"
+                          @update:modelValue="handleCheckbox(line.hunkIndex!, 'right')"
+                          class="scale-75"
+                          v-tooltip.left="'Accept this version'"
+                        />
+                      </td>
     
-                <!-- Content -->
-                <td class="px-4 py-1 whitespace-pre">{{ line.content || ' ' }}</td>
-              </tr>
-            </tbody>
-          </table>
+                      <!-- Line number -->
+                      <td class="w-12 text-right pr-4 py-1 text-surface-500 select-none border-r border-surface-200 dark:border-surface-700">
+                        {{ line.lineNum || '' }}
+                      </td>
+    
+                      <!-- Content -->
+                      <td class="px-4 py-1 whitespace-pre">{{ line.content || ' ' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </SplitterPanel>
+          </Splitter>
         </div>
     
-        <!-- Legend (if interactive) -->
+        <!-- Legend -->
         <div v-if="interactive" class="bg-surface-50 dark:bg-surface-900 p-3 border-t border-surface-200 dark:border-surface-700 text-xs text-surface-600 dark:text-surface-400">
           <div class="flex gap-6 items-center">
             <span class="font-semibold">Legend:</span>
             <span class="flex items-center gap-1">
               <span class="inline-block w-3 h-3 bg-red-200 dark:bg-red-900 rounded"></span>
-              Red = Original (Left) - Check left checkbox to keep
+              Red = Removed in original
             </span>
             <span class="flex items-center gap-1">
               <span class="inline-block w-3 h-3 bg-green-200 dark:bg-green-900 rounded"></span>
-              Green = Modified (Right) - Check right checkbox to keep
+              Green = Added in modified
             </span>
           </div>
         </div>

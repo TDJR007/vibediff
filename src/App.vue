@@ -3,5 +3,6 @@
   </script>
   
   <template>
+    <Toast />
     <DefaultLayout />
   </template>

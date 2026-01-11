@@ -11,19 +11,19 @@ const { left, right, computeDiff, hasDiff, diffResult } = useDiff()
 const router = useRouter()
 
 const computeAndNavigate = () => {
-  computeDiff()
-  
-  // Store diff data in sessionStorage for the merge page
-  const mergeData = {
-    left: left.value,
-    right: right.value,
-    diff: diffResult.value
-  }
-  
-  sessionStorage.setItem('vibediff-merge-data', JSON.stringify(mergeData))
-  
-  // Navigate to merge
-  router.push('/merge')
+    computeDiff()
+
+    // Store diff data in sessionStorage for the merge page
+    const mergeData = {
+        left: left.value,
+        right: right.value,
+        diff: diffResult.value
+    }
+
+    sessionStorage.setItem('vibediff-merge-data', JSON.stringify(mergeData))
+
+    // Navigate to merge
+    router.push('/merge')
 }
 
 // Quick test data (remove later)
@@ -37,7 +37,10 @@ right.value = `function greet(name) {
 
 <template>
     <div class="space-y-6">
-        <h1 class="text-3xl font-bold text-center">Compare Texts</h1>
+        <h1 class="text-3xl font-bold text-center flex items-center justify-center gap-3">
+            <i class="pi pi-code text-primary-600 dark:text-primary-400"></i>
+            Compare Texts
+        </h1>
 
         <!-- The container -->
         <div class="w-full border border-surface-300 dark:border-surface-700 rounded-lg overflow-hidden shadow-lg"
