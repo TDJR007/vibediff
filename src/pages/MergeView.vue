@@ -337,66 +337,65 @@ const exportMerged = () => {
 
 <template>
     <div v-if="hasData" class="merge-container">
-        <!-- Top Bar - Fixed at top -->
-        <div
-            class="top-bar bg-surface-0 dark:bg-surface-950 border-b border-surface-200 dark:border-surface-800 p-4 shadow-md">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h1 class="text-2xl font-bold text-primary-600 dark:text-primary-400">Review & Merge Changes</h1>
-                    <p class="text-sm text-surface-600 dark:text-surface-400 mt-1">
-                        Select which version to keep for each change block
-                    </p>
+        <!-- Compact Top Bar -->
+        <div class="top-bar">
+            <div class="top-bar-content">
+                <!-- Left: Title -->
+                <div class="title-section">
+                    <h1 class="page-title">Review & Merge</h1>
                 </div>
-                <div class="flex gap-3">
-                    <Button
-                        label="Accept All Left (Current)"
-                        icon="pi pi-angle-double-left"
-                        severity="danger"
-                        outlined
-                        size="small"
-                        @click="acceptAllLeft"
-                        v-tooltip.bottom="'Use entire original version'" />
-                    <Button
-                        label="Accept All Right (Incoming)"
-                        icon="pi pi-angle-double-right"
-                        severity="success"
-                        outlined
-                        size="small"
-                        @click="acceptAllRight"
-                        v-tooltip.bottom="'Use entire modified version'" />
 
-                    <div class="border-l border-surface-300 dark:border-surface-700 mx-2"></div>
+                <!-- Right: Actions -->
+                <div class="actions-section">
+                    <!-- Quick Accept Buttons -->
+                    <div class="quick-actions">
+                        <Button
+                            icon="pi pi-angle-double-left"
+                            severity="danger"
+                            text
+                            size="small"
+                            @click="acceptAllLeft"
+                            v-tooltip.bottom="'Accept All Left (Current)'" />
+                        <Button
+                            icon="pi pi-angle-double-right"
+                            severity="success"
+                            text
+                            size="small"
+                            @click="acceptAllRight"
+                            v-tooltip.bottom="'Accept All Right (Incoming)'" />
+                    </div>
 
-                    <!-- NEW: Save to library -->
+                    <div class="divider"></div>
+
+                    <!-- Main Actions -->
                     <Button
-                        label="Save to Library"
                         icon="pi pi-save"
                         severity="info"
+                        text
                         @click="showSaveDialog"
-                        v-tooltip.bottom="'Save this merge to My Diffs'" />
-
-                    <div class="border-l border-surface-300 dark:border-surface-700 mx-2"></div>
-
+                        v-tooltip.bottom="'Save to Library'" />
+                    
                     <Button
-                        label="Back to Home"
-                        icon="pi pi-arrow-left"
-                        severity="secondary"
-                        outlined
-                        @click="goBack" />
-                    <Button
-                        label="Export Merged Result"
                         icon="pi pi-download"
                         severity="success"
                         :disabled="hasConflicts"
-                        @click="exportMerged" />
+                        @click="exportMerged"
+                        v-tooltip.bottom="'Export Merged Result'" />
+                    
+                    <Button
+                        icon="pi pi-times"
+                        severity="secondary"
+                        text
+                        @click="goBack"
+                        v-tooltip.bottom="'Back to Home'" />
                 </div>
             </div>
         </div>
 
-        <!-- Scrollable Content Area -->
+        <!-- Content Area -->
         <div class="content-area">
-            <!-- Diff Viewer Section -->
-            <div class="diff-section p-6">
+            <!-- Diff Viewer -->
+            <div class="section-container">
                 <DiffViewer
                     ref="diffViewerRef"
                     :changes="diffResult"
@@ -406,61 +405,45 @@ const exportMerged = () => {
                     @accept-both="acceptBoth" />
             </div>
 
-            <!-- Merged Result Section -->
-            <div class="merged-section p-6 pt-0">
-                <div
-                    class="bg-surface-0 dark:bg-surface-950 border border-surface-300 dark:border-surface-700 rounded-lg shadow-md overflow-hidden">
-                    <!-- Header -->
-                    <div class="bg-gradient-to-r from-primary-500 to-primary-600 p-4 text-white">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <h2 class="text-lg font-semibold flex items-center gap-2">
-                                    <i class="pi pi-file-edit text-xl"></i>
-                                    Final Merged Result
-                                </h2>
-                                <p class="text-sm text-primary-100 mt-1">
-                                    This is what will be exported. You can edit it manually if needed.
-                                </p>
-                            </div>
-                            <div v-if="hasConflicts" class="flex items-center gap-2 bg-red-600 px-4 py-2 rounded-lg">
-                                <i class="pi pi-exclamation-triangle text-lg"></i>
-                                <span class="font-semibold">Conflicts Detected!</span>
-                            </div>
-                            <div v-else class="flex items-center gap-2 bg-green-600 px-4 py-2 rounded-lg">
-                                <i class="pi pi-check-circle text-lg"></i>
-                                <span class="font-semibold">Ready to Export</span>
-                            </div>
+            <!-- Merged Result -->
+            <div class="section-container">
+                <div class="merged-card">
+                    <!-- Compact Header -->
+                    <div class="merged-header">
+                        <div class="flex items-center gap-2">
+                            <i class="pi pi-file-edit"></i>
+                            <span class="font-semibold"> Final Result</span>
+                        </div>
+                        <div class="status-badge" :class="hasConflicts ? 'status-error' : 'status-success'">
+                            <i :class="hasConflicts ? 'pi pi-exclamation-triangle' : 'pi pi-check-circle'"></i>
+                            <span>{{ hasConflicts ? 'Has Conflicts' : 'Ready' }}</span>
                         </div>
                     </div>
 
-                    <!-- Editable Textarea -->
-                    <div class="p-0" style="height: 400px; display: flex; flex-direction: column;">
+                    <!-- Textarea -->
+                    <div class="merged-content">
                         <Textarea
                             v-model="mergedText"
-                            class="w-full h-full font-mono text-sm border-0 rounded-none"
-                            placeholder="Your merged result will appear here..."
-                            style="resize: none; flex: 1;" />
+                            class="merged-textarea"
+                            placeholder="Your merged result will appear here..." />
                     </div>
 
-                    <!-- Footer Stats -->
-                    <div
-                        class="bg-surface-50 dark:bg-surface-900 p-3 border-t border-surface-200 dark:border-surface-700 text-xs text-surface-600 dark:text-surface-400">
-                        <div class="flex gap-6">
-                            <span><strong>Lines:</strong> {{ mergedText.split('\n').length }}</span>
-                            <span><strong>Characters:</strong> {{ mergedText.length }}</span>
-                            <span v-if="hasConflicts"
-                                class="text-red-600 dark:text-red-400 font-semibold flex items-center gap-1">
-                                <i class="pi pi-exclamation-triangle"></i>
-                                Contains conflict markers - resolve before exporting
-                            </span>
-                        </div>
+                    <!-- Compact Footer -->
+                    <div class="merged-footer">
+                        <span>{{ mergedText.split('\n').length }} lines</span>
+                        <span>•</span>
+                        <span>{{ mergedText.length }} chars</span>
+                        <span v-if="hasConflicts" class="conflict-warning">
+                            <i class="pi pi-exclamation-triangle"></i>
+                            Resolve conflicts to export
+                        </span>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Save Dialog -->
+    <!-- Save Dialog (unchanged) -->
     <Dialog
         v-model:visible="showSaveDialogVisible"
         modal
@@ -480,7 +463,6 @@ const exportMerged = () => {
                     autofocus />
             </div>
 
-            <!-- Overwrite Warning -->
             <div v-if="nameAlreadyExists"
                 class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
                 <div class="flex items-start gap-2">
@@ -520,73 +502,184 @@ const exportMerged = () => {
 </template>
 
 <style scoped>
-.merge-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-    /* Prevent whole page scroll */
-}
-
-.top-bar {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    flex-shrink: 0;
-    backdrop-filter: blur(8px);
-}
-
-.content-area {
-    flex: 1;
-    overflow-y: auto;
-    /* Make only this area scrollable */
-    padding-top: 0;
-    background: linear-gradient(to bottom,
-            rgb(var(--surface-50)) 0%,
-            rgb(var(--surface-0)) 100%);
-}
-
-.diff-section {
-    animation: slideInUp 0.3s ease-out;
-    max-width: 1400px;
-    margin: 0 auto;
-    width: 100%;
-}
-
-.merged-section {
-    animation: slideInUp 0.4s ease-out;
-    max-width: 1400px;
-    margin: 0 auto;
-    width: 100%;
-}
-
-@keyframes slideInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
+    .merge-container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
     }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
+    
+    /* Compact Top Bar */
+    .top-bar {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        background: var(--surface-0);
+        border-bottom: 1px solid var(--surface-200);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
-}
-
-/* Custom scrollbar for content area */
-.content-area::-webkit-scrollbar {
-    width: 8px;
-}
-
-.content-area::-webkit-scrollbar-track {
-    background: rgb(var(--surface-100));
-}
-
-.content-area::-webkit-scrollbar-thumb {
-    background: rgb(var(--primary-300));
-    border-radius: 4px;
-}
-
-.content-area::-webkit-scrollbar-thumb:hover {
-    background: rgb(var(--primary-400));
-}
-</style>
+    
+    .top-bar-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1.5rem;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+    
+    .title-section {
+        display: flex;
+        align-items: center;
+    }
+    
+    .page-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--primary-600);
+        margin: 0;
+    }
+    
+    .actions-section {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .quick-actions {
+        display: flex;
+        gap: 0.25rem;
+    }
+    
+    .divider {
+        width: 1px;
+        height: 24px;
+        background: var(--surface-300);
+        margin: 0 0.5rem;
+    }
+    
+    /* Content Area */
+    .content-area {
+        flex: 1;
+        overflow-y: auto;
+        background: var(--surface-50);
+        padding: 1.5rem;
+        padding-top: 0rem;
+        padding-bottom: 0rem;
+    }
+    
+    .section-container {
+        max-width: 1600px;
+        margin: 0 auto 1.5rem auto;
+    }
+    
+    /* Merged Result Card */
+    .merged-card {
+        background: var(--surface-0);
+        border: 1px solid var(--surface-200);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    
+    .merged-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background: var(--surface-100);
+        border-bottom: 1px solid var(--surface-200);
+        font-size: 0.875rem;
+    }
+    
+    .status-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .status-success {
+        background: rgb(34, 197, 94, 0.1);
+        color: rgb(34, 197, 94);
+    }
+    
+    .status-error {
+        background: rgb(239, 68, 68, 0.1);
+        color: rgb(239, 68, 68);
+    }
+    
+    .merged-content {
+        height: 400px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .merged-textarea {
+        width: 100%;
+        height: 100%;
+        border: none;
+        border-radius: 0;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        resize: none;
+        flex: 1;
+    }
+    
+    .merged-footer {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 1rem;
+        background: var(--surface-50);
+        border-top: 1px solid var(--surface-200);
+        font-size: 0.75rem;
+        color: var(--surface-600);
+    }
+    
+    .conflict-warning {
+        margin-left: auto;
+        color: var(--red-600);
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    /* Smooth animations */
+    .section-container {
+        animation: slideInUp 0.3s ease-out;
+    }
+    
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(15px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Custom scrollbar */
+    .content-area::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .content-area::-webkit-scrollbar-track {
+        background: var(--surface-100);
+    }
+    
+    .content-area::-webkit-scrollbar-thumb {
+        background: var(--primary-300);
+        border-radius: 4px;
+    }
+    
+    .content-area::-webkit-scrollbar-thumb:hover {
+        background: var(--primary-400);
+    }
+    </style>
